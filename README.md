@@ -16,7 +16,7 @@ A production-grade, cost-optimized pipeline mapping macroeconomic cost-of-living
   - Federated raw `bigquery-public-data.bls` and `world_bank_wdi` tables into a single economic feature view.
   - Trained a BigQuery ML linear regression model using Batch Gradient Descent and tuned $L1/L2$ regularization weights.
   - *Source Code:* `sql/1_data_ingestion.sql`
-- [ ] **Generative Engine & RAG Architecture**
+- [x] **Generative Engine & RAG Architecture**
   - Build the Retrieval-Augmented Generation (RAG) orchestration loop in Vertex AI Workbench using Gemini 1.5 Flash.
   - Implement Vertex AI Model Monitoring to evaluate grounding metrics and capture hallucination indicators.
 
