@@ -1,0 +1,30 @@
+steps:
+  # Step 1: Run isolated validation tests
+  - name: 'python:3.12-slim'
+    id: 'Execute Automated Unit Tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install --no-cache-dir -r requirements.txt pytest httpx
+        pytest
+
+  # Step 2: Build the production container upon test validation pass
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Compile Secure Docker Image'
+    args: [
+      'build', 
+      '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/rag-backend-repo/rag-service:$COMMIT_SHA', 
+      '.'
+    ]
+
+  # Step 3: Commit the artifact safely to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Image To Production Registry'
+    args: [
+      'push', 
+      'us-central1-docker.pkg.dev/$PROJECT_ID/rag-backend-repo/rag-service:$COMMIT_SHA'
+    ]
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/rag-backend-repo/rag-service:$COMMIT_SHA'
