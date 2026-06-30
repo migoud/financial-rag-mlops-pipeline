@@ -21,12 +21,12 @@ A production-grade, cost-optimized pipeline mapping macroeconomic cost-of-living
   - Implement Vertex AI Model Monitoring to evaluate grounding metrics and capture hallucination indicators.
 
 ### Phase 2: Microservices & Deployment Infrastructure (Target: Middle of July)
-- [x] **Containerization & CI/CD Pipelines**
-  - Package the RAG backend into a Dockerized FastAPI application.
-  - Configure automated testing and image building using Cloud Build triggered by repository commits.
-- [ ] **Message Ingestion & Orchestrated Scale**
-  - Set up Cloud Pub/Sub to handle a simulated stream of real-time cost-of-living updates.
-  - Deploy the API runtime to GKE Autopilot, configuring nodes to automatically scale down during inactivity.
+- [x] **Containerization & GKE Autopilot Runtime Orchestration**
+  - Package the RAG backend into a Dockerized FastAPI application with standardized resource constraints.
+  - Deploy the API runtime to GKE autopilot, integrating a Horizontal Pod Autoscaler (HPA) to manage scale and automatically reduce resource footprints during inactivity. 
+- [ ] **Message Ingestion & CI/CD Automation**
+  - Architect and configure a Cloud Pub/Sub messaging layer to handle a simulated incoming data stream of real-time cost-of-living updates.
+  - Configure automated testing and automated image compilation using continuous Cloud Build triggers linked directly to GitHub repository commits.
 
 ### Phase 3: Streaming, Transformation, & Governance (Target: 3rd week of July)
 - [ ] **Dataflow Pipelines & Warehouse Optimization**
