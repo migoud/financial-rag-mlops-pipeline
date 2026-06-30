@@ -21,7 +21,7 @@ A production-grade, cost-optimized pipeline mapping macroeconomic cost-of-living
   - Implement Vertex AI Model Monitoring to evaluate grounding metrics and capture hallucination indicators.
 
 ### Phase 2: Microservices & Deployment Infrastructure (Target: Middle of July)
-- [ ] **Containerization & CI/CD Pipelines**
+- [x] **Containerization & CI/CD Pipelines**
   - Package the RAG backend into a Dockerized FastAPI application.
   - Configure automated testing and image building using Cloud Build triggered by repository commits.
 - [ ] **Message Ingestion & Orchestrated Scale**
