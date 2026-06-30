@@ -36,3 +36,16 @@ A production-grade, cost-optimized pipeline mapping macroeconomic cost-of-living
 
 ---
 # Pipeline Verified
+
+## Infrastructure & Troubleshooting Notes
+
+### Cross-Service IAM Permissions
+During deployment, ensure that the core Google Compute Engine default service account (`134570236275-compute@developer.gserviceaccount.com`) has explicit permissions enabled to prevent silent `ImagePullBackOff` or storage errors:
+* **Storage Admin** (`roles/storage.admin`): Required for staging build source code tarballs.
+* **Artifact Registry Repo Admin** (`roles/artifactregistry.repoAdmin`): Required for pushing and writing production container tags.
+
+### Production Build Flow
+Always offload container compilation to **Google Cloud Build** to ensure network byte integrity and avoid local Docker proxy/handshake rejections:
+\`\`\`bash
+gcloud builds submit --tag us-central1-docker.pkg.dev/project-2e0885aa-8f3e-4da5-86a/rag-backend-repo/rag-service:v1 .
+\`\`\`
