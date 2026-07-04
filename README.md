@@ -24,7 +24,7 @@ A production-grade, cost-optimized pipeline mapping macroeconomic cost-of-living
 - [x] **Containerization & GKE Autopilot Runtime Orchestration**
   - Package the RAG backend into a Dockerized FastAPI application with standardized resource constraints.
   - Deploy the API runtime to GKE autopilot, integrating a Horizontal Pod Autoscaler (HPA) to manage scale and automatically reduce resource footprints during inactivity. 
-- [ ] **Message Ingestion & CI/CD Automation**
+- [x] **Message Ingestion & CI/CD Automation**
   - Architect and configure a Cloud Pub/Sub messaging layer to handle a simulated incoming data stream of real-time cost-of-living updates.
   - Configure automated testing and automated image compilation using continuous Cloud Build triggers linked directly to GitHub repository commits.
 
