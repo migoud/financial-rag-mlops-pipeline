@@ -1,29 +1,48 @@
 import logging
 import json
 import time
+import sys
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from google.cloud import error_reporting
 from app.engine import RAGOrchestrationEngine
 
-# Keep your original title and version
+# Initialize core FastAPI app
 app = FastAPI(title="Financial RAG Analytics Engine", version="1.0.0")
 
-# Initialize your decoupled core orchestration instance 
+# Initialize decoupled core orchestration instance 
 engine = RAGOrchestrationEngine()
 
-# Initialize the GCP Error Reporting Client (auto-detects project credentials at runtime)
+# Graceful Error Reporting setup for runtime environment independence
 try:
     error_client = error_reporting.Client()
 except Exception:
-    # Fallback for local development if GCP credentials aren't initialized
     error_client = None
 
-# Configure the standard python root logger
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("rag_application")
+# --- GKE PRODUCTION STRUCTURED LOGGING CONFIGURATION ---
+class GKEJsonFormatter(logging.Formatter):
+    """Formats Python log records into native single-line GCP jsonPayload dictionaries."""
+    def format(self, record):
+        if isinstance(record.msg, dict):
+            log_entry = record.msg
+        else:
+            log_entry = {
+                "message": record.getMessage(),
+                "severity": record.levelname,
+                "component": "rag-backend-service"
+            }
+        return json.dumps(log_entry)
 
-# Define your original Pydantic schemas
+# Redirect standard output streams to use our custom structural JSON formatter
+log_handler = logging.StreamHandler(sys.stdout)
+log_handler.setFormatter(GKEJsonFormatter())
+
+logger = logging.getLogger("rag_application")
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
+logger.propagate = False  # Blocks standard formatting duplication loops
+
+# --- PYDANTIC APPLICATION SCHEMAS ---
 class RAGQueryRequest(BaseModel):
     prompt: str
     context: str
@@ -31,17 +50,14 @@ class RAGQueryRequest(BaseModel):
 class RAGQueryResponse(BaseModel):
     answer: str
 
-# --- CLOUD LOGGING MIDDLEWARE ---
+# --- SYSTEM PERF & OBSERVABILITY MIDDLEWARE ---
 @app.middleware("http")
 async def cloud_logging_middleware(request: Request, call_next):
-    """Intercepts requests to track latency and structure JSON logs for GCP."""
+    """Tracks network transaction overhead metrics natively indexed by GCP."""
     start_time = time.time()
-    
     response = await call_next(request)
+    process_time = (time.time() - start_time) * 1000  # Milliseconds
     
-    process_time = (time.time() - start_time) * 1000  # Convert to milliseconds
-    
-    # Construct a structured JSON log entry that GCP Cloud Logging indexes perfectly
     log_payload = {
         "severity": "INFO" if response.status_code < 400 else "WARNING",
         "message": f"{request.method} {request.url.path} responded {response.status_code} in {process_time:.2f}ms",
@@ -54,13 +70,13 @@ async def cloud_logging_middleware(request: Request, call_next):
         "component": "rag-backend-service",
     }
     
-    print(json.dumps(log_payload))
+    logger.info(log_payload)
     return response
 
-# --- GLOBAL EXCEPTION HANDLER FOR ERROR REPORTING ---
+# --- SYSTEM EXCEPTION HANDLER ---
 @app.exception_handler(Exception)
 async def global_crash_exception_handler(request: Request, exc: Exception):
-    """Catches unhandled server errors and routes them straight to GCP Error Reporting."""
+    """Interceptors unhandled application failures and pushes stack traces to GCP Error Reporting."""
     if error_client:
         error_client.report_exception()
         
@@ -69,11 +85,10 @@ async def global_crash_exception_handler(request: Request, exc: Exception):
         "message": f"Unhandled exception encountered: {str(exc)}",
         "component": "rag-backend-service"
     }
-    print(json.dumps(log_payload))
-    
+    logger.error(log_payload)
     return {"detail": "Internal Server Error occurred during RAG pipeline processing."}
 
-# --- YOUR ORIGINAL ROUTES ---
+# --- APPLICATION CONTROLLERS ---
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "service": "rag-backend"}
@@ -81,14 +96,10 @@ def health_check():
 @app.post("/v1/query", response_model=RAGQueryResponse)
 async def execute_rag_pipeline(payload: RAGQueryRequest):
     try:
-        # Route processing through your isolated engine script
         result_text = engine.generate_grounded_answer(
             prompt=payload.prompt,
             context=payload.context
         )
         return RAGQueryResponse(answer=result_text)
-        
     except Exception as e:
-        # FastAPI custom HTTPExceptions are fine, but an unhandled generic Exception 
-        # here will now bubble up and get caught by our global_crash_exception_handler above!
         raise HTTPException(status_code=500, detail=f"Internal Orchestration Failure: {str(e)}")
