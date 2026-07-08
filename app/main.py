@@ -3,21 +3,19 @@ import time
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from google.cloud import error_reporting
-import google.cloud.logging  # <--- Official Cloud Logging SDK
+# Import the specialized local container handler
+from google.cloud.logging.handlers import StructuredLogHandler
 
 # Initialize core FastAPI app
 app = FastAPI(title="Financial RAG Analytics Engine", version="1.0.0")
 
-# Setup Native Cloud Logging API Client Pipeline
-try:
-    logging_client = google.cloud.logging.Client()
-    # This single line instantly binds the root logger directly to the GCP Logging API
-    logging_client.setup_logging()
-    logger = logging.getLogger("rag-backend-service")
-except Exception:
-    # Fallback to standard logging if client initialization drops locally
-    logger = logging.getLogger("rag-backend-service")
-    logger.setLevel(logging.INFO)
+# Set up local GKE container standard output structured streams
+logger = logging.getLogger("rag-backend-service")
+logger.setLevel(logging.INFO)
+
+# Direct all standard library logs into GKE's native container JSON collector
+gke_handler = StructuredLogHandler()
+logger.addHandler(gke_handler)
 
 try:
     error_client = error_reporting.Client()
@@ -39,22 +37,17 @@ async def cloud_logging_middleware(request: Request, call_next):
     response = await call_next(request)
     process_time = (time.time() - start_time) * 1000
     
-    # Passing structured dictionaries directly to the SDK logger forces jsonPayload packaging natively
+    # Passing 'json_fields' tells the StructuredLogHandler to populate jsonPayload
     log_payload = {
         "component": "rag-backend-service",
         "message": f"{request.method} {request.url.path} responded {response.status_code} in {process_time:.2f}ms",
-        "http_meta": {
-            "requestMethod": request.method,
-            "requestUrl": str(request.url),
-            "status": response.status_code,
-            "latency": f"{process_time / 1000:.3f}s"
-        }
+        "latency_ms": process_time
     }
     
     if response.status_code < 400:
-        logger.info(log_payload)
+        logger.info("Transaction Success", extra={"json_fields": log_payload})
     else:
-        logger.warning(log_payload)
+        logger.warning("Transaction Warning", extra={"json_fields": log_payload})
         
     return response
 
@@ -68,7 +61,7 @@ async def global_crash_exception_handler(request: Request, exc: Exception):
         "component": "rag-backend-service",
         "message": f"Unhandled exception encountered: {str(exc)}"
     }
-    logger.critical(log_payload)
+    logger.critical("System Pipeline Crash", extra={"json_fields": log_payload})
     return {"detail": "Internal Server Error occurred during RAG pipeline processing."}
 
 # --- APPLICATION CONTROLLERS ---
@@ -78,7 +71,6 @@ def health_check():
 
 @app.post("/v1/query", response_model=RAGQueryResponse)
 async def execute_rag_pipeline(payload: RAGQueryRequest):
-    # Dynamic runtime imports protect testing hooks
     from app.engine import RAGOrchestrationEngine
     engine = RAGOrchestrationEngine()
     try:
