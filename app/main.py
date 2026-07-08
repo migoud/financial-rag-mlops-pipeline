@@ -9,11 +9,8 @@ from app.engine import RAGOrchestrationEngine
 
 # Initialize core FastAPI app
 app = FastAPI(title="Financial RAG Analytics Engine", version="1.0.0")
-
-# Initialize decoupled core orchestration instance 
 engine = RAGOrchestrationEngine()
 
-# Graceful Error Reporting setup for runtime environment independence
 try:
     error_client = error_reporting.Client()
 except Exception:
@@ -21,7 +18,7 @@ except Exception:
 
 # --- GKE PRODUCTION STRUCTURED LOGGING CONFIGURATION ---
 class GKEJsonFormatter(logging.Formatter):
-    """Formats Python log records into native single-line GCP jsonPayload dictionaries."""
+    """Formats all engine and application logs into single-line GCP jsonPayload dictionaries."""
     def format(self, record):
         if isinstance(record.msg, dict):
             log_entry = record.msg
@@ -29,18 +26,28 @@ class GKEJsonFormatter(logging.Formatter):
             log_entry = {
                 "message": record.getMessage(),
                 "severity": record.levelname,
-                "component": "rag-backend-service"
+                "component": "rag-backend-service",
+                "logger": record.name
             }
         return json.dumps(log_entry)
 
-# Redirect standard output streams to use our custom structural JSON formatter
+# Reconfigure the system ROOT logger to drop raw text and use our clean JSON formatter
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+
+# Clear any pre-existing default handlers to prevent string-based text collisions
+for handler in root_logger.handlers[:]:
+    root_logger.removeHandler(handler)
+
 log_handler = logging.StreamHandler(sys.stdout)
 log_handler.setFormatter(GKEJsonFormatter())
+root_logger.addHandler(log_handler)
 
-logger = logging.getLogger("rag_application")
-logger.setLevel(logging.INFO)
-logger.addHandler(log_handler)
-logger.propagate = False  # Blocks standard formatting duplication loops
+# Capture and force Uvicorn log sub-channels to drop text headers and align with the root JSON configuration
+for uvicorn_logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
+    uvicorn_logger = logging.getLogger(uvicorn_logger_name)
+    uvicorn_logger.handlers = []
+    uvicorn_logger.propagate = True
 
 # --- PYDANTIC APPLICATION SCHEMAS ---
 class RAGQueryRequest(BaseModel):
@@ -70,13 +77,13 @@ async def cloud_logging_middleware(request: Request, call_next):
         "component": "rag-backend-service",
     }
     
-    logger.info(log_payload)
+    root_logger.info(log_payload)
     return response
 
 # --- SYSTEM EXCEPTION HANDLER ---
 @app.exception_handler(Exception)
 async def global_crash_exception_handler(request: Request, exc: Exception):
-    """Interceptors unhandled application failures and pushes stack traces to GCP Error Reporting."""
+    """Interceptors unhandled failures and pushes stack traces to GCP Error Reporting."""
     if error_client:
         error_client.report_exception()
         
@@ -85,7 +92,7 @@ async def global_crash_exception_handler(request: Request, exc: Exception):
         "message": f"Unhandled exception encountered: {str(exc)}",
         "component": "rag-backend-service"
     }
-    logger.error(log_payload)
+    root_logger.error(log_payload)
     return {"detail": "Internal Server Error occurred during RAG pipeline processing."}
 
 # --- APPLICATION CONTROLLERS ---
