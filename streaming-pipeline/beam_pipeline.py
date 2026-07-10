@@ -16,13 +16,15 @@ class ParseAndCleanElement(beam.DoFn):
 def run():
     options = PipelineOptions(
         streaming=True,
-        project="project-2e0885aa-8f3e-4da5-86a"
+        project="project-2e0885aa-8f3e-4da5-86a",
+        region="us-central1",
+        temp_location="gs://project-2e0885aa-8f3e-4da5-86a-dataflow/temp"
     )
 
     with beam.Pipeline(options=options) as p:
         (
-            p 
-            # 1. Read from your active subscription (id_label removed for DirectRunner compatibility)
+            p
+            # 1. Read from your active subscription
             | "ReadFromPubSub" >> beam.io.ReadFromPubSub(
                 subscription="projects/project-2e0885aa-8f3e-4da5-86a/subscriptions/cost-of-living-sub"
             )
@@ -33,15 +35,16 @@ def run():
             | "DeduplicateRecords" >> Deduplicate(processing_time_duration=600)
             | "DropKeys" >> beam.Values()
             
-            # 3. Group streaming telemetry into 5-minute fixed windows
-            | "ApplyFixedWindows" >> beam.WindowInto(FixedWindows(300))
+            # 3. Group streaming telemetry into 10-second fixed windows for immediate local validation
+            | "ApplyFixedWindows" >> beam.WindowInto(FixedWindows(10))
             
             # 4. Stream the finalized records directly into BigQuery
             | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
-                table="project-2e0885aa-8f3e-4da5-86a:financial_rag_staging.raw_transactions",
+                table="project-2e0885aa-8f3e-4da5-86a:realtime_metrics.raw_transactions",
                 schema="transaction_id:STRING, user_id:STRING, prompt:STRING, context:STRING, index_value:FLOAT, timestamp:TIMESTAMP",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                additional_bq_parameters={"tableReference":{"location": "us-central1"}}
             )
         )
 
