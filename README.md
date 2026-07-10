@@ -29,7 +29,7 @@ A production-grade, cost-optimized pipeline mapping macroeconomic cost-of-living
   - Configure automated testing and automated image compilation using continuous Cloud Build triggers linked directly to GitHub repository commits.
 
 ### Phase 3: Streaming, Transformation, & Governance (Target: 3rd week of July)
-- [ ] **Dataflow Pipelines & Warehouse Optimization**
+- [x] **Dataflow Pipelines & Warehouse Optimization**
   - Build a streaming Apache Beam (Dataflow) pipeline to handle deduplication and windowing for incoming Pub/Sub data.
   - Orchestrate internal SQL transformations using Dataform and apply schema-level BigQuery Policy Tags.
   - Create a Looker Studio dashboard tracking pipeline operational health and model data drift.
