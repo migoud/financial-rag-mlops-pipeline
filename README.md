@@ -5,7 +5,7 @@ A production-grade, cost-optimized pipeline mapping macroeconomic cost-of-living
 ## 🛠️ Tech Stack
 - **Compute & Orchestration:** GKE Autopilot, Docker, FastAPI, Cloud Build (CI/CD)
 - **Data Infrastructure:** BigQuery Studio, Dataflow (Apache Beam), Cloud Pub/Sub, Dataform
-- **AI/ML Engine:** Vertex AI Studio (Gemini 1.5 Flash), Vertex AI Vector Search, BigQuery ML
+- **AI/ML Engine:** Vertex AI Studio (Gemini 2.5 Flash), Vertex AI Vector Search, BigQuery ML
 
 ---
 
@@ -32,7 +32,6 @@ A production-grade, cost-optimized pipeline mapping macroeconomic cost-of-living
 - [x] **Dataflow Pipelines & Warehouse Optimization**
   - Build a streaming Apache Beam (Dataflow) pipeline to handle deduplication and windowing for incoming Pub/Sub data.
   - Orchestrate internal SQL transformations using Dataform and apply schema-level BigQuery Policy Tags.
-  - Create a Looker Studio dashboard tracking pipeline operational health and model data drift.
 
 ---
 # Pipeline Verified
